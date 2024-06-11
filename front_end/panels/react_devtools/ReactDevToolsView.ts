@@ -12,7 +12,11 @@ import type * as ReactDevToolsTypes from '../../third_party/react-devtools/react
 import * as Common from '../../core/common/common.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 
-import {Events as ReactDevToolsModelEvents, ReactDevToolsModel, type EventTypes as ReactDevToolsModelEventTypes} from './ReactDevToolsModel.js';
+import {
+  Events as ReactDevToolsModelEvents,
+  ReactDevToolsModel,
+  type EventTypes as ReactDevToolsModelEventTypes,
+} from './ReactDevToolsModel.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as Logs from '../../models/logs/logs.js';
 import type * as Platform from '../../core/platform/platform.js';
@@ -28,45 +32,6 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 
 type ReactDevToolsInitializedEvent = Common.EventTarget.EventTargetEvent<ReactDevToolsModelEventTypes[ReactDevToolsModelEvents.Initialized]>;
 type ReactDevToolsMessageReceivedEvent = Common.EventTarget.EventTargetEvent<ReactDevToolsModelEventTypes[ReactDevToolsModelEvents.MessageReceived]>;
-
-// Based on ExtensionServer.onOpenResource
-async function openResource(
-  url: Platform.DevToolsPath.UrlString,
-  lineNumber: number, // 0-based
-  columnNumber: number, // 0-based
-): Promise<void> {
-  const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(url);
-  if (uiSourceCode) {
-    // Unlike the Extension API's version of openResource, we want to normalize the location
-    // so that source maps (if any) are applied.
-    const normalizedUiLocation = await Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().normalizeUILocation(uiSourceCode.uiLocation(lineNumber, columnNumber));
-    void Common.Revealer.reveal(normalizedUiLocation);
-    return;
-  }
-
-  const resource = Bindings.ResourceUtils.resourceForURL(url);
-  if (resource) {
-    void Common.Revealer.reveal(resource);
-    return;
-  }
-
-  const request = Logs.NetworkLog.NetworkLog.instance().requestForURL(url);
-  if (request) {
-    void Common.Revealer.reveal(request);
-    return;
-  }
-
-  throw new Error('Could not find resource for ' + url);
-}
-
-function viewElementSourceFunction(source: ReactDevToolsTypes.Source, symbolicatedSource: ReactDevToolsTypes.Source | null): void {
-  const {sourceURL, line, column} = symbolicatedSource
-    ? symbolicatedSource
-    : source;
-
-  // We use 1-based line and column, Chrome expects them 0-based.
-  void openResource(sourceURL as Platform.DevToolsPath.UrlString, line - 1, column - 1);
-}
 
 export class ReactDevToolsViewImpl extends UI.View.SimpleView {
   private readonly wall: ReactDevToolsTypes.Wall;
@@ -127,7 +92,8 @@ export class ReactDevToolsViewImpl extends UI.View.SimpleView {
       store: this.store,
       theme: usingDarkTheme ? 'dark' : 'light',
       canViewElementSourceFunction: () => true,
-      viewElementSourceFunction,
+      viewElementSourceFunction: this.viewElementSourceFunction.bind(this),
+      viewAttributeSourceFunction: this.viewAttributeSourceFunction.bind(this),
     });
   }
 
@@ -142,6 +108,76 @@ export class ReactDevToolsViewImpl extends UI.View.SimpleView {
     this.listeners.clear();
 
     this.renderLoader();
+  }
+
+  // Based on ExtensionServer.onOpenResource
+  private async openResource(
+    url: Platform.DevToolsPath.UrlString,
+    lineNumber: number, // 0-based
+    columnNumber: number, // 0-based
+  ): Promise<void> {
+    const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(url);
+    if (uiSourceCode) {
+      // Unlike the Extension API's version of openResource, we want to normalize the location
+      // so that source maps (if any) are applied.
+      const normalizedUiLocation = await Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().normalizeUILocation(uiSourceCode.uiLocation(lineNumber, columnNumber));
+      void Common.Revealer.reveal(normalizedUiLocation);
+      return;
+    }
+
+    const resource = Bindings.ResourceUtils.resourceForURL(url);
+    if (resource) {
+      void Common.Revealer.reveal(resource);
+      return;
+    }
+
+    const request = Logs.NetworkLog.NetworkLog.instance().requestForURL(url);
+    if (request) {
+      void Common.Revealer.reveal(request);
+      return;
+    }
+
+    throw new Error('Could not find resource for ' + url);
+  }
+
+  private viewElementSourceFunction(source: ReactDevToolsTypes.Source, symbolicatedSource: ReactDevToolsTypes.Source | null): void {
+    const {sourceURL, line, column} = symbolicatedSource
+      ? symbolicatedSource
+      : source;
+
+    // We use 1-based line and column, Chrome expects them 0-based.
+    void this.openResource(sourceURL as Platform.DevToolsPath.UrlString, line - 1, column - 1);
+  }
+
+  private viewAttributeSourceFunction(id: number, path: Array<string | number>): void {
+    // @ts-ignore
+    const rendererID = this.store.getRendererIDForElement(id);
+    if (rendererID == null) {
+      return
+    }
+
+    // Ask the renderer interface to find the specified attribute,
+    // and store it as a global variable on the window.
+    // @ts-ignore
+    this.bridge.send('viewAttributeSource', {id, path, rendererID});
+
+    setTimeout(() => {
+      const expression = `
+        if (window.$attribute != null) {
+          inspect(window.$attribute);
+        }
+      `;
+
+      this.executionContext?.evaluate(
+        {
+          expression,
+          objectGroup: 'console',
+          includeCommandLineAPI: true,
+        },
+        /* userGesture */ false,
+        /* awaitPromise */ false
+      );
+    }, 100);
   }
 
   private renderLoader(): void {
