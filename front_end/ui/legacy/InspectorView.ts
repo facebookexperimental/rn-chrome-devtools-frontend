@@ -180,6 +180,7 @@ export class InspectorView extends VBox implements ViewLocationResolver {
     if (this.drawerSplitWidget.showMode() !== ShowMode.OnlyMain && selectedDrawerTab) {
       Host.userMetrics.panelShown(selectedDrawerTab, true);
       Host.userMetrics.panelShownInLocation(selectedDrawerTab, 'drawer');
+      Host.rnPerfMetrics.panelShown(selectedDrawerTab);
     }
     this.drawerTabbedPane.setTabDelegate(this.tabDelegate);
 
@@ -215,6 +216,7 @@ export class InspectorView extends VBox implements ViewLocationResolver {
     if (selectedTab) {
       Host.userMetrics.panelShown(selectedTab, true);
       Host.userMetrics.panelShownInLocation(selectedTab, 'main');
+      Host.rnPerfMetrics.panelShown(selectedTab);
     }
     this.tabbedPane.setAccessibleName(i18nString(UIStrings.panels));
     this.tabbedPane.setTabDelegate(this.tabDelegate);
@@ -449,6 +451,7 @@ export class InspectorView extends VBox implements ViewLocationResolver {
   private tabSelected(tabId: string, location: 'main'|'drawer'): void {
     Host.userMetrics.panelShown(tabId);
     Host.userMetrics.panelShownInLocation(tabId, location);
+    Host.rnPerfMetrics.panelShown(tabId);
   }
 
   setOwnerSplit(splitWidget: SplitWidget): void {

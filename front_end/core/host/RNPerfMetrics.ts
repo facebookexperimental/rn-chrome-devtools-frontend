@@ -23,6 +23,7 @@ class RNPerfMetrics {
   readonly #consoleErrorMethod = 'error';
   #listeners: Set<RNReliabilityEventListener> = new Set();
   #launchId: string|null = null;
+  #currentPanelName: string|null = null;
 
   addEventListener(listener: RNReliabilityEventListener): UnsubscribeFn {
     this.#listeners.add(listener);
@@ -186,10 +187,18 @@ class RNPerfMetrics {
     }
   }
 
+  panelShown(panelName: string): void {
+    // The current panel name would be sent along via #decorateEvent(…)
+    this.sendEvent({eventName: 'PanelShown', params: {newPanelName: panelName}});
+    // So we should only update the current panel name to the new one after sending the event
+    this.#currentPanelName = panelName;
+  }
+
   #decorateEvent(event: ReactNativeChromeDevToolsEvent): Readonly<DecoratedReactNativeChromeDevToolsEvent> {
     const commonFields: CommonEventFields = {
       timestamp: getPerfTimestamp(),
       launchId: this.#launchId,
+      panelName: this.#currentPanelName,
     };
 
     return {
@@ -221,6 +230,7 @@ function maybeWrapError(baseMessage: string, error: unknown): [string, Error] {
 type CommonEventFields = Readonly<{
   timestamp: DOMHighResTimeStamp,
   launchId: string | void | null,
+  panelName: string | null,
 }>;
 
 type EntryPoint = 'rn_fusebox'|'rn_inspector';
@@ -295,9 +305,16 @@ export type FuseboxSetClientMetadataFinishedEvent = Readonly<{
   }>,
 }>;
 
-export type ReactNativeChromeDevToolsEvent =
-    EntrypointLoadingStartedEvent|EntrypointLoadingFinishedEvent|DebuggerReadyEvent|BrowserVisibilityChangeEvent|
-    BrowserErrorEvent|RemoteDebuggingTerminatedEvent|DeveloperResourceLoadingStartedEvent|
-    DeveloperResourceLoadingFinishedEvent|FuseboxSetClientMetadataStartedEvent|FuseboxSetClientMetadataFinishedEvent;
+export type PanelShownEvent = Readonly<{
+  eventName: 'PanelShown',
+  params: Readonly<{
+    newPanelName: string,
+  }>,
+}>;
+
+export type ReactNativeChromeDevToolsEvent = EntrypointLoadingStartedEvent|EntrypointLoadingFinishedEvent|
+    DebuggerReadyEvent|BrowserVisibilityChangeEvent|BrowserErrorEvent|RemoteDebuggingTerminatedEvent|
+    DeveloperResourceLoadingStartedEvent|DeveloperResourceLoadingFinishedEvent|FuseboxSetClientMetadataStartedEvent|
+    FuseboxSetClientMetadataFinishedEvent|PanelShownEvent;
 
 export type DecoratedReactNativeChromeDevToolsEvent = CommonEventFields&ReactNativeChromeDevToolsEvent;
