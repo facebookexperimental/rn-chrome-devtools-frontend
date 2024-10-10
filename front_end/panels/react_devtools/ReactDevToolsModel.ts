@@ -163,8 +163,19 @@ export class ReactDevToolsModel extends SDK.SDKModel.SDKModel<EventTypes> {
 
   #finishInitializationAndNotify(): void {
     this.#bridge = ReactDevTools.createBridge(this.#wall);
-    this.#store = ReactDevTools.createStore(this.#bridge);
+    this.#store = ReactDevTools.createStore(this.#bridge, {
+      supportsReloadAndProfile: true,
+    });
+    this.#attachReloadToProfileListener();
     this.dispatchEventToListeners(Events.InitializationCompleted);
+  }
+
+  #attachReloadToProfileListener(): void {
+    this.#wall.listen((message: ReactDevToolsTypes.Message): void => {
+      if (message.event === 'reloadAppForProfiling') {
+        SDK.ResourceTreeModel.ResourceTreeModel.reloadAllPages(false);
+      }
+    });
   }
 
   #handleBackendExecutionContextUnavailable({data: errorMessage}: ReactDevToolsBindingsBackendExecutionContextUnavailableEvent): void {
