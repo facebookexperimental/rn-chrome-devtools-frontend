@@ -30,6 +30,7 @@
 
 import {InspectorFrontendHostInstance} from './InspectorFrontendHost.js';
 import {EnumeratedHistogram} from './InspectorFrontendHostAPI.js';
+import * as RNPerfMetrics from './RNPerfMetrics.js';
 
 export class UserMetrics {
   #panelChangedSinceLaunch: boolean;
@@ -67,6 +68,7 @@ export class UserMetrics {
     if (!isLaunching) {
       this.#panelChangedSinceLaunch = true;
     }
+    RNPerfMetrics.getInstance().panelShown(panelName, isLaunching);
   }
 
   /**
@@ -77,6 +79,7 @@ export class UserMetrics {
     InspectorFrontendHostInstance.recordEnumeratedHistogram(EnumeratedHistogram.PanelClosed, code, PanelCodes.MaxValue);
     // Store that the user has changed the panel so we know launch histograms should not be fired.
     this.#panelChangedSinceLaunch = true;
+    RNPerfMetrics.getInstance().panelClosed(panelName);
   }
 
   panelShownInLocation(panelName: string, location: 'main'|'drawer'): void {
@@ -87,6 +90,7 @@ export class UserMetrics {
         panelWithLocation,
         PanelWithLocation.MaxValue,
     );
+    RNPerfMetrics.getInstance().panelShownInLocation(panelName, location);
   }
 
   elementsSidebarTabShown(sidebarPaneName: string): void {

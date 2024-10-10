@@ -18,11 +18,14 @@ export function getInstance(): RNPerfMetrics {
   return instance;
 }
 
+type PanelLocation = 'main'|'drawer';
 type UnsubscribeFn = () => void;
 class RNPerfMetrics {
   readonly #consoleErrorMethod = 'error';
   #listeners: Set<RNReliabilityEventListener> = new Set();
   #launchId: string|null = null;
+  // map of panel location to panel name
+  #currentPanels: Map<PanelLocation, string> = new Map();
 
   addEventListener(listener: RNReliabilityEventListener): UnsubscribeFn {
     this.#listeners.add(listener);
@@ -243,10 +246,28 @@ class RNPerfMetrics {
     });
   }
 
+  panelShown(_panelName: string, _isLaunching?: boolean): void {
+    // no-op
+    // We only care about the "main" and "drawer" panels for now via panelShownInLocation(…)
+    // (This function is called for other "sub"-panels)
+  }
+
+  panelClosed(panelName: string): void {
+    this.sendEvent({eventName: 'PanelClosed', params: {panelName}});
+  }
+
+  panelShownInLocation(panelName: string, location: PanelLocation): void {
+    // The current panel name would be sent along via #decorateEvent(…)
+    this.sendEvent({eventName: 'PanelShown', params: {location, newPanelName: panelName}});
+    // So we should only update the current panel name to the new one after sending the event
+    this.#currentPanels.set(location, panelName);
+  }
+
   #decorateEvent(event: ReactNativeChromeDevToolsEvent): Readonly<DecoratedReactNativeChromeDevToolsEvent> {
     const commonFields: CommonEventFields = {
       timestamp: getPerfTimestamp(),
       launchId: this.#launchId,
+      currentPanels: this.#currentPanels,
     };
 
     return {
@@ -278,6 +299,7 @@ function maybeWrapError(baseMessage: string, error: unknown): [string, Error] {
 type CommonEventFields = Readonly<{
   timestamp: DOMHighResTimeStamp,
   launchId: string | void | null,
+  currentPanels: Map<PanelLocation, string>,
 }>;
 
 type EntryPoint = 'rn_fusebox'|'rn_inspector';
@@ -367,9 +389,25 @@ export type MemoryPanelActionFinishedEvent = Readonly<{
   }>,
 }>;
 
-export type ReactNativeChromeDevToolsEvent = EntrypointLoadingStartedEvent|EntrypointLoadingFinishedEvent|
-    DebuggerReadyEvent|BrowserVisibilityChangeEvent|BrowserErrorEvent|RemoteDebuggingTerminatedEvent|
-    DeveloperResourceLoadingStartedEvent|DeveloperResourceLoadingFinishedEvent|FuseboxSetClientMetadataStartedEvent|
-    FuseboxSetClientMetadataFinishedEvent|MemoryPanelActionStartedEvent|MemoryPanelActionFinishedEvent;
+export type PanelShownEvent = Readonly<{
+  eventName: 'PanelShown',
+  params: Readonly<{
+    location: PanelLocation,
+    newPanelName: string,
+  }>,
+}>;
+
+export type PanelClosedEvent = Readonly<{
+  eventName: 'PanelClosed',
+  params: Readonly<{
+    panelName: string,
+  }>,
+}>;
+
+export type ReactNativeChromeDevToolsEvent =
+    EntrypointLoadingStartedEvent|EntrypointLoadingFinishedEvent|DebuggerReadyEvent|BrowserVisibilityChangeEvent|
+    BrowserErrorEvent|RemoteDebuggingTerminatedEvent|DeveloperResourceLoadingStartedEvent|
+    DeveloperResourceLoadingFinishedEvent|FuseboxSetClientMetadataStartedEvent|FuseboxSetClientMetadataFinishedEvent|
+    MemoryPanelActionStartedEvent|MemoryPanelActionFinishedEvent|PanelShownEvent|PanelClosedEvent;
 
 export type DecoratedReactNativeChromeDevToolsEvent = CommonEventFields&ReactNativeChromeDevToolsEvent;
