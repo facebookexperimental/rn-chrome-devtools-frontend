@@ -2,7 +2,21 @@
 
 Source code for React Native's debugger frontend, based on Chrome DevTools. This project is periodically compiled and checked into the React Native repo as [`@react-native/debugger-frontend`](https://github.com/facebook/react-native/tree/main/packages/debugger-frontend).
 
+This project provides the source code for React Native's debugging frontend, which is based on Chrome DevTools. It 
+enables developers working on React Native apps to debug their code more efficiently by leveraging Chrome DevTools functionality.
+
 This repository is a fork of [ChromeDevTools/devtools-frontend](https://github.com/ChromeDevTools/devtools-frontend).
+
+## Example usage
+After building the project, you can use the React Native Debugger frontend to inspect and debug your React Native app. First, serve the built files 
+locally using:
+
+```sh
+python3 -m http.server 8000 --directory out/Default/gen/front_end
+```
+Then, open your browser and navigate to http://localhost:8000/inspector.html for general debugging, or http://localhost:8000/rn_inspector.html for 
+React Native-specific debugging. This allows you to inspect UI components, monitor network requests, and analyze performance metrics directly in 
+your browser using Chrome DevTools.
 
 ## Development
 
@@ -21,17 +35,27 @@ This repository is a fork of [ChromeDevTools/devtools-frontend](https://github.c
 
 1. Build continuously with a file watcher:
 
+   This option continuously rebuilds the project whenever a file changes. It's best suited for active development as it allows you to see changes
+   in real time, but it can consume more system resources, especially in larger projects. Use this during iterative work when you need fast
+   feedback.
+
     ```sh
     npm run watch
     ```
 
 1. Build with the default config once:
 
+   This single, non-watched build compiles the project with the default configuration. It’s quicker and less resource-heavy than the watch build,
+   making it ideal for testing changes without long-term commitment to resource usage.
+
     ```sh
     npm run build
     ```
 
 1. Build with the release config once:
+
+   This one-time build optimizes the code for production use. It’s slower to compile and can take significantly more time but results in a stable,
+   high-performance version suitable for production environments. Use this when preparing the project for final deployment or release.
 
     ```sh
     npm run build-release
