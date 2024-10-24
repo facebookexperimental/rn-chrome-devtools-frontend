@@ -176,7 +176,7 @@ export class RNWelcomeImpl extends UI.Widget.VBox implements
                 <p>${i18nString(UIStrings.docsDebuggingBasicsDetail)}</p>
               </div>
             </button>
-            <button class="rn-welcome-docsfeed-item" type="button" role="link" @click=${this.#handleLinkPress.bind(this, 'https:\/\/reactnative.dev/docs/react-devtools')} title=${i18nString(UIStrings.docsReactNativeDevTools)}>
+            <button class="rn-welcome-docsfeed-item" type="button" role="link" @click=${this.#handleLinkPress.bind(this, 'https:\/\/reactnative.dev/docs/react-native-devtools')} title=${i18nString(UIStrings.docsReactNativeDevTools)}>
               <div class="rn-welcome-image" style="background-image: url('${docsImage2Url}')"></div>
               <div>
                 <p class="devtools-link">${i18nString(UIStrings.docsReactNativeDevTools)}</p>
